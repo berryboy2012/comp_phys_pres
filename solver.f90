@@ -54,6 +54,7 @@ module solver
         s(1) = fdt( t,w )
         ! w1 currently used as a temporary variable
         ! example
+        ! yet another example
         do i=1,5
             w1 = w
             do j=1,i
