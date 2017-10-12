@@ -90,6 +90,7 @@ module solver
 
         max_devisions = 1000
         mindt = 2*epsilon(h)
+        p = 4
 
         ct = t
         cstate = state
