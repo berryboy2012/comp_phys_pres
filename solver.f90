@@ -123,8 +123,8 @@ module solver
             if(terr>cerr) then
                 cerr = terr
             end if
-            print *, its
-            print *, ct
+            !print *, its
+            !print *, ct
             if ( ct > t+delta_t ) then !!!!!!!!!!!
                 dt = t+delta_t-tt
                 call rkf45_step(tt,dt,tstate,terr)
@@ -137,7 +137,7 @@ module solver
         end do
 
         t = t+delta_t
-        print *, t
+        !print *, t
         state = cstate
         err = cerr
 

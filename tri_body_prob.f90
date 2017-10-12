@@ -22,7 +22,7 @@ module tri_body_prob
         procedure   ::  Ek
         procedure   ::  x_val
         procedure   ::  v_val
-!        procedure   ::  show_planet
+        procedure   ::  show_planet
     end type planet
     
     type triBody
@@ -32,7 +32,7 @@ module tri_body_prob
         procedure   ::  energy
         procedure   ::  crush
         procedure   ::  modulus
-!        procedure   ::  show_triBody
+        procedure   ::  show_triBody
     end type triBody
     
     interface operator(+)
@@ -75,13 +75,12 @@ module tri_body_prob
         v_val = sqrt( dot_product( obj%v, obj%v ) ) 
     end function v_val
     
-!    subroutine show_planet( obj )
-!        class(planet)   ::  obj
-!        print *, 'Planet Information:'
-!        print '(a,f20.16)',  '  mass      : ', obj%m
-!        print '(a,3f20.16)', '  coordinate: ', obj%x
-!        print '(a,3f20.16)', '  velocity  : ', obj%v
-!    end subroutine show_planet
+    subroutine show_planet( obj )
+        class(planet)   ::  obj
+        print '(a,f12.6,$)',  '  mass      : ', obj%m
+        print '(a,3f12.6,$)', '  coordinate: ', obj%x
+        print '(a,3f12.6)', '  velocity  : ', obj%v
+    end subroutine show_planet
     
     !-------------------------------------------------------
     ! functions characterizing two body interaction
@@ -175,10 +174,11 @@ module tri_body_prob
         n = triObj%p_num
         crush = .false.
         i = 1
-        do while(i < n .and. crush .eqv. .false.)
+        do while(i < n .and. (crush .eqv. .false.))
             do j=i+1, n
                 if ( collision(triObj%p(i), triObj%p(j) ) .eqv. .true. ) crush = .true.
                 end do
+            i = i+1
         end do
     end function crush
     
@@ -199,27 +199,20 @@ module tri_body_prob
         modulus = sqrt( m_m_square + m_x_square + m_v_square )
     end function modulus
     
-!    subroutine show_triBody( triObj )
-!        class(triBody)  ::  triObj
-!        print *, "Tri-body System Information:"
-!        print *, 'Planet a:'
-!        print '(a,f20.16)',  '  mass      : ', triObj%a%m
-!        print '(a,3f20.16)', '  coordinate: ', triObj%a%x
-!        print '(a,3f20.16)', '  velocity  : ', triObj%a%v
-!        print *, ' Planet b:'
-!        print '(a,f20.16)',  '  mass      : ', triObj%b%m
-!        print '(a,3f20.16)', '  coordinate: ', triObj%b%x
-!        print '(a,3f20.16)', '  velocity  : ', triObj%b%v
-!        print *, 'Planet c:'
-!        print '(a,f20.16)',  '  mass      : ', triObj%c%m
-!        print '(a,3f20.16)', '  coordinate: ', triObj%c%x
-!        print '(a,3f20.16)', '  velocity  : ', triObj%c%v
-!        if ( triObj%crush() .eqv. .false. ) then
-!            print '(a,f20.16)', '  Total energy:', triObj%energy()
-!        else
-!            print *, 'Tri-Body system may crush. Energy is not well defined.'
-!        end if
-!    end subroutine show_triBody
+    subroutine show_triBody( triObj )
+        class(triBody)  ::  triObj
+        integer :: i
+        print *, "Info of particle system:"
+        do i=1, triObj%p_num
+            print '(a,i3,a)', 'Planet ', i , ':'
+            call triObj%p(i)%show_planet()
+        end do
+        if ( triObj%crush() .eqv. .false. ) then
+            print '(a,f12.6)', '  Total energy:', triObj%energy()
+        else
+            print *, 'Tri-Body system may crush. Energy is not well defined.'
+        end if
+    end subroutine show_triBody
     
     !------------------------------------------------------------
     ! overload of operator + and -, namely plus and subtract
@@ -250,9 +243,10 @@ module tri_body_prob
         n = triObj1%p_num
         allocate(temp_plist(n))
         do i=1, n
-            temp_plist = planet_plus( triObj1%p(i), triObj2%p(i) )
+            temp_plist(i) = planet_plus( triObj1%p(i), triObj2%p(i) )
         end do
         triBody_plus = triBody(temp_plist)
+!        call triBody_plus%show_triBody()
     end function triBody_plus
     
     function triBody_subtract( triObj1, triObj2 )
@@ -264,7 +258,7 @@ module tri_body_prob
         n = triObj1%p_num
         allocate(temp_plist(n))
         do i=1, n
-            temp_plist = planet_subtract( triObj1%p(i), triObj2%p(i) )
+            temp_plist(i) = planet_subtract( triObj1%p(i), triObj2%p(i) )
         end do
         triBody_subtract = triBody(temp_plist)
     end function triBody_subtract
@@ -303,14 +297,18 @@ module tri_body_prob
         type(planet), allocatable :: temp_plist(:)
         integer :: n,i,j
         n = state%p_num
+        !call state%show_triBody()
+!        print *, n
         allocate(temp_plist(n))
         do i=1, n
             temp_plist(i)%m = 0.d0
             temp_plist(i)%x = state%p(i)%v
             temp_plist(i)%v = 0.d0
             do j=1, n
+!                print *, state%p(j)%m
                 if (j /= i) temp_plist(i)%v = temp_plist(i)%v - state%p(j)%m * scaled_f_12( state%p(j), state%p(i))
             end do
+
         end do
         fdt = triBody(temp_plist)
     end function fdt
