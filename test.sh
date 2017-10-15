@@ -1,0 +1,1 @@
+ifort -shared -fPIC solver_c.f90 tri_body_prob.f90 solver.f90 -o solver_c.so && python3 ./tribody.py
