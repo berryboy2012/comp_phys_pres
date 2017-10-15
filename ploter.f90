@@ -8,7 +8,7 @@ module ploter
         
         integer         ::  data_unit
         integer         ::  i
-        real*8          ::  t, Etotal, err
+        real*16          ::  t, Etotal, err
         type(triBody)   ::  state
         
         Etotal = energy(state)
@@ -25,7 +25,7 @@ module ploter
 !        integer         ::  k, frame_digs, zeros, i
 !        type(triBody)   ::  state
 !        character(255)  ::  plot_title
-!        real*8          ::  xrange(2), yrange(2)
+!        real*16          ::  xrange(2), yrange(2)
 !        character(255)  ::  string, cxrange, cyrange, cxy1, cxy2, cxy3
 !
 !        if (k == 0) then

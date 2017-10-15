@@ -6,18 +6,18 @@ module tri_body_prob
     ! definition of universal constants
     !-------------------------------------------------------
     
-    real*8, parameter   ::  G  = 1.0d0  ! gravitation constant
-    real*8, parameter   ::  pi = 3.1415926535897932384626433d0
-    real*8, parameter   ::  forbidden_dist = 1.0e-14
-    real*8, parameter   ::  metric(3) = [1.0d0,1.0d0,1.0d0]
+    real*16, parameter   ::  G  = 1.0q0  ! gravitation constant
+    real*16, parameter   ::  pi = 3.1415926535897932384626433832795028841971q0
+    real*16, parameter   ::  forbidden_dist = 1.0Q-14
+    real*16, parameter   ::  metric(3) = [1.0q0,1.0q0,1.0q0]
     
     !-------------------------------------------------------
     ! definition of the basic type characterizing the problem
     !-------------------------------------------------------
     
     type planet
-        real*8                ::  m
-        real*8, dimension(3)  ::  x, v
+        real*16                ::  m
+        real*16, dimension(3)  ::  x, v
       contains
         procedure   ::  Ek
         procedure   ::  x_val
@@ -59,19 +59,19 @@ module tri_body_prob
      
     function Ek( obj )
         class(planet)   ::  obj
-        real*8          ::  Ek
-        Ek = ( obj%m/2.0d0 ) * dot_product( obj%v, obj%v )
+        real*16          ::  Ek
+        Ek = ( obj%m/2.0q0 ) * dot_product( obj%v, obj%v )
     end function Ek
     
     function x_val( obj )
         class(planet)   ::  obj
-        real*8          ::  x_val
+        real*16          ::  x_val
         x_val = sqrt( dot_product( obj%x, obj%x ) ) 
     end function x_val
      
     function v_val( obj )
         class(planet)   ::  obj
-        real*8          ::  v_val
+        real*16          ::  v_val
         v_val = sqrt( dot_product( obj%v, obj%v ) ) 
     end function v_val
     
@@ -88,30 +88,29 @@ module tri_body_prob
     
     function r_12( obj1, obj2 )
         type(planet)    ::  obj1, obj2
-        real*8          ::  r_12
+        real*16          ::  r_12
         r_12 = sqrt( dot_product( obj1%x-obj2%x, obj1%x-obj2%x ) )
     end function r_12
     
     function U_12( obj1, obj2 )
         type(planet)    ::  obj1, obj2
-        real*8          ::  U_12
+        real*16          ::  U_12
         U_12 = - G*obj1%m*obj2%m/r_12( obj1,obj2 )
     end function U_12
     
     function scaled_f_12( obj1, obj2 )
         ! vector originating from obj1 to obj2, hence renders 2-1
         ! the real force is f_12 = m1*m2*scaled_f_12
-        real*8, dimension(3)    :: scaled_f_12
+        real*16, dimension(3)    :: scaled_f_12
         type(planet)            :: obj1, obj2
-        real*8                  :: r             
-        r = r_12( obj1,obj2 )
-        scaled_f_12 = ( G/r**3 )*( obj2%x - obj1%x )
+
+        scaled_f_12 = ( G/r_12( obj1,obj2 )**3 )*( obj2%x - obj1%x )
     end function scaled_f_12
     
     function collision( obj1, obj2 )
         type(planet)    ::  obj1, obj2
         logical         ::  collision
-        real*8          ::  r
+        real*16          ::  r
         collision = .false.
         r = r_12( obj1,obj2 )
         if ( r <= forbidden_dist ) then
@@ -125,8 +124,8 @@ module tri_body_prob
     
     subroutine set_planet( obj, m, x, v )
         type(planet)            ::  obj
-        real*8                  ::  m
-        real*8, dimension(3)    ::  x, v
+        real*16                  ::  m
+        real*16, dimension(3)    ::  x, v
         obj%m = m
         obj%x = x
         obj%v = v
@@ -150,18 +149,16 @@ module tri_body_prob
 
     function energy( triObj )
         class(triBody)  ::  triObj
-        real*8          ::  energy
-        real*8          ::  potential, kinetic
+        real*16          ::  energy
+        real*16          ::  potential, kinetic
         integer :: i, j, n
         n = triObj%p_num
-        potential = 0.d0
+        potential = 0.q0
+        kinetic   = 0.q0
         do i=1, n
-            do j=1, n
-                if (i /= j) potential = potential + 0.5d0 * U_12(triObj%p(i), triObj%p(j))
+            do j=i+1, n
+                potential = potential + U_12(triObj%p(i), triObj%p(j))
             end do
-        end do
-        kinetic   = 0.d0
-        do i=1, n
             kinetic = kinetic + triObj%p(i)%Ek()
         end do
         energy    = potential + kinetic
@@ -184,13 +181,13 @@ module tri_body_prob
     
     function modulus( triObj )
         class(triBody)  ::  triObj
-        real*8          ::  modulus
-        real*8          ::  m_m_square, m_x_square, m_v_square
+        real*16          ::  modulus
+        real*16          ::  m_m_square, m_x_square, m_v_square
         integer :: i, n
         n = triObj%p_num
-        m_m_square = 0.d0
-        m_x_square = 0.d0
-        m_v_square = 0.d0
+        m_m_square = 0.q0
+        m_x_square = 0.q0
+        m_v_square = 0.q0
         do i=1, n
             m_m_square = m_m_square + metric(1)*((triObj%p(i)%m)**2)
             m_x_square = m_x_square + metric(2)*(dot_product( triObj%p(i)%x, triObj%p(i)%x ))
@@ -246,7 +243,6 @@ module tri_body_prob
             temp_plist(i) = planet_plus( triObj1%p(i), triObj2%p(i) )
         end do
         triBody_plus = triBody(temp_plist)
-!        call triBody_plus%show_triBody()
     end function triBody_plus
     
     function triBody_subtract( triObj1, triObj2 )
@@ -265,7 +261,7 @@ module tri_body_prob
     
     function planet_mul( coeff, obj )
         type(planet), intent(in)    ::  obj
-        real*8, intent(in)          ::  coeff
+        real*16, intent(in)          ::  coeff
         type(planet)                ::  planet_mul
         planet_mul%m = coeff*obj%m
         planet_mul%x = coeff*obj%x
@@ -274,7 +270,7 @@ module tri_body_prob
     
     function triBody_mul( coeff, triObj )
         type(triBody), intent(in)   ::  triObj
-        real*8, intent(in)          ::  coeff
+        real*16, intent(in)          ::  coeff
         type(triBody)               ::  triBody_mul
         type(planet), allocatable :: temp_plist(:)
         integer :: n,i,j
@@ -293,19 +289,16 @@ module tri_body_prob
     
     function fdt(t,state)
         type(triBody)    ::  state, fdt
-        real*8           ::  t
+        real*16           ::  t
         type(planet), allocatable :: temp_plist(:)
         integer :: n,i,j
         n = state%p_num
-        !call state%show_triBody()
-!        print *, n
         allocate(temp_plist(n))
         do i=1, n
-            temp_plist(i)%m = 0.d0
+            temp_plist(i)%m = 0.q0
             temp_plist(i)%x = state%p(i)%v
-            temp_plist(i)%v = 0.d0
+            temp_plist(i)%v = 0.q0
             do j=1, n
-!                print *, state%p(j)%m
                 if (j /= i) temp_plist(i)%v = temp_plist(i)%v - state%p(j)%m * scaled_f_12( state%p(j), state%p(i))
             end do
 
