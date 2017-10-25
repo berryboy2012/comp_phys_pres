@@ -7,7 +7,7 @@ contains
     subroutine init(h, t, delta_t, err, tol, p_num, p_m, p_x, p_v) bind(c, name='init')
         use, intrinsic :: ISO_C_BINDING
         integer(c_int), intent(in) :: p_num
-        real(c_double), intent(inout) :: h, t, delta_t, err, tol, p_m(p_num), p_x(p_num, 3), p_v(p_num, 3)
+        real(c_double), intent(in) :: h, t, delta_t, err, tol, p_m(p_num), p_x(p_num, 3), p_v(p_num, 3)
         type(planet) :: plist(p_num)
         integer :: i,j
         gh = h
@@ -16,9 +16,13 @@ contains
         gerr = err
         gtol = tol
         do i=1, p_num
+            !print *, i
             plist(i)%m = p_m(i)
+            !print *, p_m(i)
             plist(i)%x(:) = p_x(i,:)
+            !print *, p_x(i,:)
             plist(i)%v(:) = p_v(i,:)
+            !print *, p_v(i,:)
         end do
         state = triBody(plist)
     end
