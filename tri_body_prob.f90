@@ -182,18 +182,15 @@ module tri_body_prob
     function modulus( triObj )
         class(triBody)  ::  triObj
         real*16          ::  modulus
-        real*16          ::  m_m_square, m_x_square, m_v_square
         integer :: i, n
         n = triObj%p_num
-        m_m_square = 0.q0
-        m_x_square = 0.q0
-        m_v_square = 0.q0
+        modulus = 0.q0
         do i=1, n
-            m_m_square = m_m_square + metric(1)*((triObj%p(i)%m)**2)
-            m_x_square = m_x_square + metric(2)*(dot_product( triObj%p(i)%x, triObj%p(i)%x ))
-            m_v_square = m_v_square + metric(3)*(dot_product( triObj%p(i)%v, triObj%p(i)%v ))
+            modulus = modulus + metric(2)*(dot_product( triObj%p(i)%x, triObj%p(i)%x ))&
+                              + metric(3)*(dot_product( triObj%p(i)%v, triObj%p(i)%v ))
+!                              + metric(1)*((triObj%p(i)%m)**2)
         end do
-        modulus = sqrt( m_m_square + m_x_square + m_v_square )
+        modulus = sqrt( modulus )
     end function modulus
     
     subroutine show_triBody( triObj )

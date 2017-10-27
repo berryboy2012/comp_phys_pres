@@ -44,36 +44,28 @@ module solver
     !------------------------------------------------------------
 
     subroutine rkf45_step(t,h,w,err)
-
         real*16, intent(in)          ::  t, h
         type(triBody)               ::  w, w1, z1
         real*16                      ::  err
         type(triBody), dimension(6) ::  s
         integer                     ::  i, j
-
-        ! w1 currently used as a temporary variable
         do i=1,6
             w1 = w
             do j=1,i - 1
                 w1 = w1 + ( rkf_csu(i - 1,j)/rkf_csl(i - 1) )*h*s(j)
             end do
-            !print *, w1%p(1)%m
             s(i) = fdt( rkf_ct(i) * h,w1 )
         end do
-
         w1 = w
         do j=1,6
             w1 = w1 + ( rkf_cw(j) )*h*s(j)
         end do
-
         z1 = w
         do j=1,6
             z1 = z1 + ( rkf_cz(j) )*h*s(j)
         end do
-
         err = modulus(z1-w1)/modulus(z1)
         w = z1
-
     end subroutine rkf45_step
 
     !--------------------------------------------------------
@@ -102,7 +94,7 @@ module solver
         call rkf45_step(tt,dt,tstate,terr)
 
         do      ! main loop
-            dt = 0.8*( (tol/terr)**(1/dble(p+1)) )*dt
+            dt = 0.84q0*( (tol/terr)**(1/dble(p)) )*dt
             its = 0
             do  ! subloop
                 tt = ct
