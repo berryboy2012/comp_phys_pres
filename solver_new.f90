@@ -29,7 +29,7 @@ module solver_new
             do j=1, i-1
                 k(i) = k(i) + rkf_yki(i, j) * h * k(j)
             end do
-            k(i) = fdt(rkf_tki(i) * h, k(i))
+            k(i) = fdt(k(i))
             !call k(i)%show_triBody()
         end do
         yl = w

@@ -7,6 +7,9 @@ import time
 import sys
 from PyQt5.QtWidgets import *
 import MainWin_UI
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d.axes3d as p3
+import matplotlib.animation as animation
 
 CDLL = ctypes.CDLL
 POINTER = ctypes.POINTER
@@ -18,7 +21,7 @@ Process = multiprocessing.Process
 
 
 class GravityState:
-    def __init__(self, m=None, x=None, v=None, debug=False):
+    def __init__(self, m=None, x=None, v=None, tol=1E-3, debug=False):
         self.debug = debug
         if m is None or x is None or v is None:
             if self.debug:
@@ -42,6 +45,7 @@ class GravityState:
         self.p_x = p_x
         self.p_v = p_v
         self.p_num = p_num
+        self.tol = c_double(tol)
 
     def set_point(self, mp=None, xp=None, vp=None, pos=-1):
         if pos == -1:
@@ -77,7 +81,7 @@ class FortranSolver:
             POINTER(c_double), POINTER(c_double), POINTER(c_double)
         ]
 
-    def set_param(self, state=None, step_len=1.0 / 60.0, t=0.0, tolerance=1.0E-16):
+    def set_param(self, state=None, step_len=1.0 / 60.0, t=0.0):
         if state is None:
             self.state = GravityState(debug=True)
         else:
@@ -86,7 +90,7 @@ class FortranSolver:
         self.delta_t = c_double(step_len)
         self.err = c_double(0.0)
         self.energy = c_double(0.0)
-        self.tol = c_double(tolerance)
+        self.tol = self.state.tol
         self.s.init(self.t, self.delta_t, self.tol, self.state.p_num,
                     self.state.p_m.ctypes.data_as(POINTER(c_double)),
                     self.state.p_x.ctypes.data_as(POINTER(c_double)),
@@ -105,9 +109,9 @@ class FortranSolver:
                 'E': self.energy.value}
 
 
-def calc_worker(state, tol, fps, pipe):
+def calc_worker(state, fps, pipe):
     fort_worker = FortranSolver()
-    fort_worker.set_param(state=state, step_len=1.0 / fps, tolerance=tol)
+    fort_worker.set_param(state=state, step_len=1.0 / fps)
     stop = False
     pause = False
     while not stop:
@@ -127,14 +131,27 @@ def calc_worker(state, tol, fps, pipe):
 
 if __name__ == '__main__':
     pa, pb = Pipe()
-    t = Process(target=calc_worker, args=(GravityState(debug=True), 1.0E-6, 60.0, pb))
+    t = Process(target=calc_worker, args=(GravityState(debug=True), 60.0, pb))
     t.start()
-    for i in range(int(60 * 10.28)):
+    dots = []
+
+    def plot_init():
+        global dots
         res = pa.recv()
-        print(res['t'], res['E'], res['err'], end=' ')
-        for xi in res['s']['x']:
-            print(*xi, end=' ')
-        for vi in res['s']['v']:
-            print(*vi, end=' ')
-        print()
-    pa.send('STOP')
+        dots, = ax.plot(*list(zip(*res['s']['x'])), 'bo')
+        return dots,
+
+    def plot_iter(i):
+        global dots
+        if not pa.poll():
+            print('can\'t keep up!')
+        res = pa.recv()
+        dots.set_data(*list(zip(*res['s']['x']))[:2])
+        dots.set_3d_properties(list(zip(*res['s']['x']))[2])
+        return dots,
+
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    ax.autoscale()
+    ani = animation.FuncAnimation(fig, plot_iter, interval=1000.0 / 60.0, blit=False, init_func=plot_init)
+    plt.show()

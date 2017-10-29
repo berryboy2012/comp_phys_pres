@@ -284,9 +284,8 @@ module tri_body_prob
     ! the whole lot of work is to construct this function properly
     !------------------------------------------------------------
     
-    function fdt(t,state)
+    function fdt(state)
         type(triBody)    ::  state, fdt
-        real*16           ::  t
         type(planet), allocatable :: temp_plist(:)
         integer :: n,i,j
         n = state%p_num

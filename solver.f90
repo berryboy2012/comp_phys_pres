@@ -54,7 +54,7 @@ module solver
             do j=1,i - 1
                 w1 = w1 + ( rkf_csu(i - 1,j)/rkf_csl(i - 1) )*h*s(j)
             end do
-            s(i) = fdt( rkf_ct(i) * h,w1 )
+            s(i) = fdt(w1)
         end do
         w1 = w
         do j=1,6
