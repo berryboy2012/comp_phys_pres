@@ -6,8 +6,12 @@ import copy
 import time
 import sys
 import json
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 from PyQt5.QtWidgets import *
-import MainWin_UI, ParticleAddForm_UI, ParticlePresetForm_UI
+import MainWin_UI, ParticleAddForm_UI, ParticlePresetForm_UI, PlotForm_UI
 
 CDLL = ctypes.CDLL
 POINTER = ctypes.POINTER
@@ -15,6 +19,7 @@ c_double = ctypes.c_double
 c_int = ctypes.c_int
 Pipe = multiprocessing.Pipe
 Thread = threading.Thread
+Process = multiprocessing.Process
 
 
 class GravityState:
@@ -114,7 +119,7 @@ class FortranSolver:
         self.delta_t = self.h
         self.err = c_double(0.0)
         self.energy = c_double(0.0)
-        self.tol = c_double(self.state.tol)
+        self.tol = self.state.tol
         self.s.init(self.t, self.delta_t, self.tol, self.state.p_num,
                     self.state.p_m.ctypes.data_as(POINTER(c_double)),
                     self.state.p_x.ctypes.data_as(POINTER(c_double)),
@@ -145,23 +150,127 @@ class AddParticleForm(QWidget, ParticleAddForm_UI.Ui_ParticleAddForm):
         self.setupUi(self)
 
 
+class MyMplCanvas(FigureCanvas):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        FigureCanvas.__init__(self, fig)
+        self.axes = fig.add_subplot(111, projection='3d')
+        self.axes.set_autoscale_on(True)
+        self.axes.mouse_init()
+        self.compute_initial_figure()
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+
+    def compute_initial_figure(self):
+        pass
+
+
+class AnimationWidget(QWidget):
+    def __init__(self):
+        super(AnimationWidget, self).__init__()
+
+        vbox = QVBoxLayout()
+        self.canvas = MyMplCanvas(self, width=10, height=8, dpi=100)
+        vbox.addWidget(self.canvas)
+
+        hboxL = QVBoxLayout()
+        self.ehint_label = QLabel(self)
+        self.ehint_label.setText('Energy:')
+        self.errhint_label = QLabel(self)
+        self.errhint_label.setText('Relative error:')
+        hboxL.addWidget(self.ehint_label)
+        hboxL.addWidget(self.errhint_label)
+        hboxR = QVBoxLayout()
+        self.error_label = QLabel(self)
+        self.energy_label = QLabel(self)
+        hboxR.addWidget(self.energy_label)
+        hboxR.addWidget(self.error_label)
+        hbox = QHBoxLayout()
+        hbox.addLayout(hboxL)
+        hbox.addLayout(hboxR)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+
 class MainWin(QWidget, MainWin_UI.Ui_MainWin):
     def __init__(self):
         super(MainWin, self).__init__()
         self.setupUi(self)
+
         self.gstate = GravityState(debug=True)
+
         self.refresh_mainwin()
         self.show()
+
         self.add = AddParticleForm()
         self.preset = PresetParticleForm()
+
         self.add_button.clicked.connect(self.add.show)
         self.add.ok_button.clicked.connect(self.try_add_particle)
+
         self.del_button.clicked.connect(self.try_del_particle)
+
         self.preset_json = None
         self.refresh_preset()
         self.preset_button.clicked.connect(self.open_preset)
         self.preset.preset_list.itemClicked.connect(self.show_preset_description)
         self.preset.use_button.clicked.connect(self.load_preset)
+
+        self.plot = AnimationWidget()
+        dots = self.__state2dots()
+        self.dots = self.plot.canvas.axes.scatter(*dots[0:2], zs=dots[2])
+        self.pa, self.pb = Pipe()
+        self.worker = Process(target=calc_worker, args=(self.gstate, 60.0, self.pb))
+
+        self.playing = False
+        self.play_button.clicked.connect(self.toggle_play)
+
+    def __state2dots(self):
+        x = []
+        y = []
+        z = []
+        for i in self.gstate.get_point():
+            x.append(i['x'][0])
+            y.append(i['x'][1])
+            z.append(i['x'][2])
+        return x, y, z
+
+    def toggle_play(self):
+        if self.playing:
+            self.playing = False
+            return self.stop_playback()
+        else:
+            self.playing = True
+            return self.start_playback()
+
+    def stop_playback(self):
+        res = self.pa.recv()
+        self.pa.send('STOP')
+        self.ani._stop()
+        self.gstate = GravityState(m=res['s']['m'], x=res['s']['x'], v=res['s']['v'], tag=self.gstate.p_tag
+                                   , tol=self.gstate.tol.value)
+        self.part_list.setEnabled(True)
+        self.refresh_mainwin()
+
+    def start_playback(self):
+        self.pa, self.pb = Pipe()
+        self.worker = Process(target=calc_worker, args=(self.gstate, 60.0, self.pb))
+        dots = self.__state2dots()
+        self.dots, = self.plot.canvas.axes.plot(*dots, 'bo')
+        self.part_list.setEnabled(False)
+        self.worker.start()
+        self.plot.canvas.axes.clear()
+        self.ani = animation.FuncAnimation(self.plot.canvas.figure, self.update_plot, blit=True, interval=1000.0 / 60.0)
+        self.plot.show()
+
+    def update_plot(self, i):
+        res = self.pa.recv()
+        self.dots.set_data(*list(zip(*res['s']['x']))[:2])
+        self.dots.set_3d_properties(list(zip(*res['s']['x']))[2])
+        self.plot.error_label.setText(str(res['err']))
+        self.plot.energy_label.setText(str(res['E']))
+        return self.dots,
 
     def refresh_preset(self):
         self.preset.preset_list.clear()

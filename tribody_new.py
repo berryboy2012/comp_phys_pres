@@ -153,5 +153,5 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     ax.autoscale()
-    ani = animation.FuncAnimation(fig, plot_iter, interval=1000.0 / 60.0, blit=False, init_func=plot_init)
+    ani = animation.FuncAnimation(fig, plot_iter, interval=1000.0 / 60.0, blit=True, init_func=plot_init)
     plt.show()
