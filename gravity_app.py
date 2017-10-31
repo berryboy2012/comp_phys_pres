@@ -158,6 +158,7 @@ class MyMplCanvas(FigureCanvas):
         self.axes = fig.add_subplot(111, projection='3d')
         self.axes.set_autoscale_on(True)
         self.axes.mouse_init()
+        # print(self.axes.figure.canvas)
         self.compute_initial_figure()
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
@@ -262,10 +263,13 @@ class MainWin(QWidget, MainWin_UI.Ui_MainWin):
         self.worker.start()
         self.plot.canvas.axes.clear()
         self.ani = animation.FuncAnimation(self.plot.canvas.figure, self.update_plot, blit=True, interval=1000.0 / 60.0)
+        self.plot.canvas.axes.relim()
+        self.plot.canvas.axes.autoscale_view()
         self.plot.show()
 
     def update_plot(self, i):
         res = self.pa.recv()
+        # self.plot.canvas.axes.can_zoom()
         self.dots.set_data(*list(zip(*res['s']['x']))[:2])
         self.dots.set_3d_properties(list(zip(*res['s']['x']))[2])
         self.plot.error_label.setText(str(res['err']))
