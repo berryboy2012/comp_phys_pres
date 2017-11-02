@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>378</width>
-    <height>320</height>
+    <width>379</width>
+    <height>359</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
      <x>20</x>
      <y>250</y>
      <width>321</width>
-     <height>61</height>
+     <height>91</height>
     </rect>
    </property>
    <property name="text">
@@ -40,6 +40,9 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QLabel" name="des_label">
