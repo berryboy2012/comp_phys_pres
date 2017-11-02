@@ -82,5 +82,26 @@
     ],
     "description": "",
     "tolerance": 0.0000001
+  },
+  {
+    "name": "Bifurcation point",
+    "m": [0.3, 0.03, 0.3],
+    "x": [
+      [2.0, 2.0, 0.0],
+      [0.0, 0.0, 0.0],
+      [-2.0, -2.0, 0.0]
+    ],
+    "v": [
+      [0.2, -0.2, 0.0],
+      [0.0, 0.0, 0.0],
+      [-0.2, 0.2, 0.0]
+    ],
+    "tag": [
+      "A",
+      "B",
+      "C"
+    ],
+    "description": "An example of instability.\n behaviour of system will be very different even if you only increased the first particle's v_x by 0.00001",
+    "tolerance": 0.000000001
   }
 ]
