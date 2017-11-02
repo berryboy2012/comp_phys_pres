@@ -1,26 +1,27 @@
 module solver_new
     use tri_body_prob
     implicit none
-    real*16, parameter :: min_adj_dt = 1.Q-9
-    real*16, parameter, dimension(6) :: rkf_tki = &
-            [0.q0, 1.q0 / 4.q0, 3.q0 / 8.q0, 12.q0 / 13.q0, 1.q0, 1.q0 / 2.q0]
-    real*16, parameter, dimension(6, 6) :: rkf_yki = transpose( reshape( [&
-            0.q0, 0.q0, 0.q0, 0.q0, 0.q0, 0.q0, &
-            1.q0 / 4.q0, 0.q0, 0.q0, 0.q0, 0.q0, 0.q0, &
-            3.q0 / 32.q0, 9.q0 / 32.q0, 0.q0, 0.q0, 0.q0, 0.q0, &
-            1932.q0 / 2197.q0, -7200.q0 / 2197.q0, 7296.q0 / 2197.q0, 0.q0, 0.q0, 0.q0, &
-            439.q0 / 216.q0, -8.q0, 3680.q0 / 513.q0, -845.q0 / 4104.q0, 0.q0, 0.q0, &
-            -8.q0 / 27.q0, 2.q0, -3544.q0 / 2565.q0, 1859.q0 / 4104.q0, -11.q0 / -40.q0, 0.q0 &
+    real*8, parameter :: min_adj_dt = 1.d-6
+    real*8, parameter, dimension(6) :: rkf_tki = &
+            [0.d0, 1.d0 / 4.d0, 3.d0 / 8.d0, 12.d0 / 13.d0, 1.d0, 1.d0 / 2.d0]
+    real*8, parameter, dimension(6, 6) :: rkf_yki = transpose( reshape( [&
+            0.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
+            1.d0 / 4.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
+            3.d0 / 32.d0, 9.d0 / 32.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
+            1932.d0 / 2197.d0, -7200.d0 / 2197.d0, 7296.d0 / 2197.d0, 0.d0, 0.d0, 0.d0, &
+            439.d0 / 216.d0, -8.d0, 3680.d0 / 513.d0, -845.d0 / 4104.d0, 0.d0, 0.d0, &
+            -8.d0 / 27.d0, 2.d0, -3544.d0 / 2565.d0, 1859.d0 / 4104.d0, -11.d0 / -40.d0, 0.d0 &
     ], [6, 6]))
-    real*16, parameter, dimension(6) :: rkf_yk = &
-            [25.q0 / 216.q0, 0.q0, 1408.q0 / 2565.q0, 2197.q0 / 4101.q0, -1.q0 / 5.q0, 0.q0]
-    real*16, parameter, dimension(6) :: rkf_zk = &
-            [16.q0 / 135.q0, 0.q0, 6656.q0 / 12825.q0, 28561.q0 / 56430.q0, -9.q0 / 50.q0, 2.q0 / 55.q0]
+    real*8, parameter, dimension(6) :: rkf_yk = &
+            [25.d0 / 216.d0, 0.d0, 1408.d0 / 2565.d0, 2197.d0 / 4101.d0, -1.d0 / 5.d0, 0.d0]
+    real*8, parameter, dimension(6) :: rkf_zk = &
+            [16.d0 / 135.d0, 0.d0, 6656.d0 / 12825.d0, 28561.d0 / 56430.d0, -9.d0 / 50.d0, 2.d0 / 55.d0]
+    integer :: loop_depth=1
     contains
     subroutine rk5(h, w, err)
-        real*16, intent(in) :: h
+        real*8, intent(in) :: h
         type(triBody) :: w, yl
-        real*16 :: err
+        real*8 :: err
         type(triBody), dimension(6) :: k
         integer :: i, j
 
@@ -44,9 +45,9 @@ module solver_new
         !print *, 'err in rk5',  err
     end
     recursive subroutine rkf45(t, delta_t, state, err, tol)
-        real*16 :: adjusted_dt, err_tmp
-        real*16, intent(inout) :: t, err
-        real*16, intent(in) :: delta_t, tol
+        real*8 :: adjusted_dt, err_tmp
+        real*8, intent(inout) :: t, err
+        real*8, intent(in) :: delta_t, tol
         type(triBody) :: state, test_state
         test_state = state
         call rk5(delta_t, test_state, err_tmp)
@@ -57,8 +58,8 @@ module solver_new
             err = err + err_tmp
         else
             !print *, 'F'
-            adjusted_dt = delta_t * 0.84q0 * (tol / err_tmp)**(0.25q0)
-            !print *, adjusted_dt / delta_t * 100.q0, '%'
+            adjusted_dt = delta_t * 0.84d0 * (tol / err_tmp)**(0.25d0)
+            !print *, adjusted_dt / delta_t * 100.d0, '%'
             if (adjusted_dt < min_adj_dt) then
                 !print *, 'adjusted length too short'
                 call rk5(adjusted_dt, state, err_tmp)
@@ -80,37 +81,35 @@ module solver_new
         end if
         !print *, 'EOF'
     end
-    subroutine rkf45_loop(t, delta_t, state, err, tol)
-        real*16 :: adjusted_dt, err_tmp, t_f
-        real*16, intent(inout) :: t, err
-        real*16, intent(in) :: delta_t, tol
+    subroutine rkf45loop(t, delta_t, state, err, tol)
+        implicit none
+        real*8 :: adjusted_dt, err_tmp
+        real*8, intent(inout) :: t, err
+        real*8, intent(in) :: delta_t, tol
         type(triBody) :: state, test_state
-        test_state = state
-        t_f = t + delta_t
-        call rk5(delta_t, test_state, err_tmp)
-        if ((isnan(err_tmp) .eqv. .true.) .or. (err_tmp < tol)) then
-            !print *, 'passed on first try'
-            state = test_state
-            t = t + delta_t
-            err = err + err_tmp
-            return
-        end if
-        adjusted_dt = delta_t * 0.84q0 * (tol / err_tmp)**(0.25q0)
-        do while (t + adjusted_dt < t_f .and. adjusted_dt > min_adj_dt)
-            call rk5(adjusted_dt, test_state, err_tmp)
-            t = t + adjusted_dt
-            err = err + err_tmp
-            adjusted_dt = adjusted_dt * 0.84q0 * (tol / err_tmp)**(0.25q0)
+        integer :: i
+        adjusted_dt = delta_t / loop_depth
+        err = 2.d0 * tol
+        do while ((isnan(err) .eqv. .false.) .and. (err > tol) .and. adjusted_dt > min_adj_dt)
+            err = 0.d0
+            test_state = state
+            do i=1, loop_depth
+                call rk5(adjusted_dt, test_state, err_tmp)
+                err = err + err_tmp
+            end do
+            adjusted_dt = adjusted_dt / 2.d0
+            loop_depth = loop_depth * 2
+            !print *, err
         end do
-        call rk5(t_f - t, test_state, err_tmp)
+        if (tol > 8.d0 * err .and. loop_depth > 4) loop_depth = loop_depth / 4
+        if (adjusted_dt < min_adj_dt) loop_depth = int(2.d0 * log(delta_t / min_adj_dt) / log(2.d0))
         state = test_state
-        err = err + err_tmp
-        t = t_f
+        t = t + delta_t
     end
     subroutine rkf45_iter(t, delta_t, state, err, tol)
-        real*16 :: adjusted_dt
-        real*16, intent(inout) :: t, err
-        real*16, intent(in) :: delta_t, tol
+        real*8 :: adjusted_dt
+        real*8, intent(inout) :: t, err
+        real*8, intent(in) :: delta_t, tol
         type(triBody) :: state, test_state
         test_state = state
         call rk5(delta_t, test_state, err)
@@ -118,15 +117,15 @@ module solver_new
         do while ((isnan(err) .eqv. .false.) .and. (err > tol) .and. (adjusted_dt > min_adj_dt))
             !print *, 'passed on first try'
             call rk5(adjusted_dt, test_state, err)
-            adjusted_dt = adjusted_dt * 0.84q0 * (tol / err)**(0.25q0)
+            adjusted_dt = adjusted_dt * 0.84d0 * (tol / err)**(0.25d0)
         end do
         state = test_state
         t = t + adjusted_dt
     end
     subroutine rkf45_interpolation(t, delta_t, state, err, tol)
-        real*16, intent(inout) :: t, err
-        real*16, intent(in) :: delta_t, tol
-        real*16 :: t_r, t_l, err_tmp
+        real*8, intent(inout) :: t, err
+        real*8, intent(in) :: delta_t, tol
+        real*8 :: t_r, t_l, err_tmp
         type(triBody) :: state, state_r
         t_l = t
         t_r = t_l

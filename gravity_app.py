@@ -103,6 +103,11 @@ class FortranSolver:
             POINTER(c_int),
             POINTER(c_double), POINTER(c_double)
         ]
+        self.s.iter_step_alter.argtypes = [
+            POINTER(c_double), POINTER(c_double), POINTER(c_double),
+            POINTER(c_int),
+            POINTER(c_double), POINTER(c_double)
+        ]
         self.s.init.argtypes = [
             POINTER(c_double), POINTER(c_double), POINTER(c_double),
             POINTER(c_int),
@@ -126,10 +131,12 @@ class FortranSolver:
                     self.state.p_v.ctypes.data_as(POINTER(c_double)))
 
     def step_forward(self):
-        self.s.iter_step(self.t, self.err, self.energy, self.state.p_num,
+        #print('pingping')
+        self.s.iter_step_alter(self.t, self.err, self.energy, self.state.p_num,
                          self.state.p_x.ctypes.data_as(POINTER(c_double)),
                          self.state.p_v.ctypes.data_as(POINTER(c_double))
                          )
+        #print('pongpong')
         return {'s': {'m': self.state.p_m.tolist(),
                       'x': self.state.p_x.tolist(),
                       'v': self.state.p_v.tolist()},
@@ -150,17 +157,22 @@ class AddParticleForm(QWidget, ParticleAddForm_UI.Ui_ParticleAddForm):
         self.setupUi(self)
 
 
+class EditParticleForm(AddParticleForm):
+    def __init__(self):
+        super(EditParticleForm, self).__init__()
+        self.setWindowTitle('Edit a particle')
+        self.edit_pos = 0
+
+
 class MyMplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         FigureCanvas.__init__(self, fig)
         self.axes = fig.add_subplot(111, projection='3d')
-        self.axes.set_autoscale_on(True)
+        #self.daxe = fig.add_subplot(122, projection='3d')
         self.axes.mouse_init()
-        # print(self.axes.figure.canvas)
         self.compute_initial_figure()
-        FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
     def compute_initial_figure(self):
@@ -172,7 +184,7 @@ class AnimationWidget(QWidget):
         super(AnimationWidget, self).__init__()
 
         vbox = QVBoxLayout()
-        self.canvas = MyMplCanvas(self, width=10, height=8, dpi=100)
+        self.canvas = MyMplCanvas(self, width=12, height=8, dpi=100)
         vbox.addWidget(self.canvas)
 
         hboxL = QVBoxLayout()
@@ -180,13 +192,18 @@ class AnimationWidget(QWidget):
         self.ehint_label.setText('Energy:')
         self.errhint_label = QLabel(self)
         self.errhint_label.setText('Relative error:')
+        self.fpshint_label = QLabel(self)
+        self.fpshint_label.setText('Frame time:')
         hboxL.addWidget(self.ehint_label)
         hboxL.addWidget(self.errhint_label)
+        hboxL.addWidget(self.fpshint_label)
         hboxR = QVBoxLayout()
         self.error_label = QLabel(self)
         self.energy_label = QLabel(self)
+        self.fps_label = QLabel(self)
         hboxR.addWidget(self.energy_label)
         hboxR.addWidget(self.error_label)
+        hboxR.addWidget(self.fps_label)
         hbox = QHBoxLayout()
         hbox.addLayout(hboxL)
         hbox.addLayout(hboxR)
@@ -206,11 +223,15 @@ class MainWin(QWidget, MainWin_UI.Ui_MainWin):
 
         self.add = AddParticleForm()
         self.preset = PresetParticleForm()
+        self.editor = EditParticleForm()
 
         self.add_button.clicked.connect(self.add.show)
         self.add.ok_button.clicked.connect(self.try_add_particle)
 
         self.del_button.clicked.connect(self.try_del_particle)
+
+        self.edit_button.clicked.connect(self.edit_open)
+        self.editor.ok_button.clicked.connect(self.try_edit_particle)
 
         self.preset_json = None
         self.refresh_preset()
@@ -223,9 +244,46 @@ class MainWin(QWidget, MainWin_UI.Ui_MainWin):
         self.dots = self.plot.canvas.axes.scatter(*dots[0:2], zs=dots[2])
         self.pa, self.pb = Pipe()
         self.worker = Process(target=calc_worker, args=(self.gstate, 60.0, self.pb))
+        #self.phase_graph = self.plot.canvas.daxe.plot()
 
         self.playing = False
         self.play_button.clicked.connect(self.toggle_play)
+
+    def edit_open(self):
+        if not self.part_list.selectedItems():
+            return
+        plist = []
+        for i in self.gstate.get_point():
+            plist.append(i)
+        p = plist[self.part_list.row(self.part_list.selectedItems()[0])]
+        self.editor.mass_edit.setText(str(p['m']))
+        self.editor.posx_edit.setText(str(p['x'][0]))
+        self.editor.posy_edit.setText(str(p['x'][1]))
+        self.editor.posz_edit.setText(str(p['x'][2]))
+        self.editor.velx_edit.setText(str(p['v'][0]))
+        self.editor.vely_edit.setText(str(p['v'][1]))
+        self.editor.velz_edit.setText(str(p['v'][2]))
+        self.editor.tag_edit.setText(p['tag'])
+        self.editor.edit_pos = self.part_list.row(self.part_list.selectedItems()[0])
+        self.editor.show()
+
+    def try_edit_particle(self):
+        try:
+            m = float(self.editor.mass_edit.text())
+            x = [float(self.editor.posx_edit.text()),
+                 float(self.editor.posy_edit.text()),
+                 float(self.editor.posz_edit.text())]
+            v = [float(self.editor.velx_edit.text()),
+                 float(self.editor.vely_edit.text()),
+                 float(self.editor.velz_edit.text())]
+            tag = self.editor.tag_edit.text()
+        except:
+            self.editor.error_hint.setText('Invalid input')
+            return
+        self.editor.error_hint.setText('')
+        self.gstate.set_point(mp=m, xp=x, vp=v, tp=tag, pos=self.editor.edit_pos)
+        self.editor.hide()
+        self.refresh_mainwin()
 
     def __state2dots(self):
         x = []
@@ -268,12 +326,17 @@ class MainWin(QWidget, MainWin_UI.Ui_MainWin):
         self.plot.show()
 
     def update_plot(self, i):
+        ct = time.time()
         res = self.pa.recv()
         # self.plot.canvas.axes.can_zoom()
+        # self.plot.canvas.axes.clear()
+        # self.dots, = self.plot.canvas.axes.plot(*list(zip(*res['s']['x'])), 'bo')
         self.dots.set_data(*list(zip(*res['s']['x']))[:2])
         self.dots.set_3d_properties(list(zip(*res['s']['x']))[2])
+        # self.plot.canvas.axes.relim()
         self.plot.error_label.setText(str(res['err']))
         self.plot.energy_label.setText(str(res['E']))
+        self.plot.fps_label.setText(str(time.time() - ct))
         return self.dots,
 
     def refresh_preset(self):
@@ -347,6 +410,7 @@ def calc_worker(state, fps, pipe):
     stop = False
     pause = False
     while not stop:
+        ct = time.time()
         if pipe.poll():
             req = pipe.recv()
             if req == 'STOP':
@@ -359,6 +423,7 @@ def calc_worker(state, fps, pipe):
             pipe.send(fort_worker.step_forward())
         else:
             time.sleep(0.1)
+            print(ct - time.time())
 
 
 if __name__ == '__main__':
